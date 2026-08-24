@@ -38,13 +38,23 @@
         .card.hum { border-top-color: #0056b3; }
         .value { font-size: 3.5rem; font-weight: bold; color: #2f3542; margin: 10px 0; }
         .status { font-size: 0.85rem; color: #a4b0be; }
+        #surovi-izpis {
+            margin-top: 30px;
+            background: #dfe4ea;
+            padding: 10px;
+            border-radius: 8px;
+            font-family: monospace;
+            font-size: 0.8rem;
+            max-width: 600px;
+            word-break: break-all;
+        }
     </style>
 </head>
 <body>
 
     <header>
-        <h1>🌤️ Moja ESP32 Vremenska Postaja</h1>
-        <p>Podatki iz senzorjev osveženi v živo</p>
+        <h1>Moja Vremenska Postaja</h1>
+        <p>Senzor uspešno zaznava temperaturo in vlago</p>
     </header>
 
     <div class="dashboard">
@@ -63,28 +73,42 @@
         </div>
     </div>
 
+    <!-- Tukaj bova videla, kaj točno ThingSpeak pošlje -->
+    <div id="surovi-izpis">Čakanje na surove podatke iz ThingSpeaka...</div>
+
     <script>
         function obdelajPodatke(podatki) {
             try {
-                if (podatki && podatki.feeds && podatki.feeds.length > 0) {
-                    const zadnjiVpis = podatki.feeds[0];
+                // Najprej izpišemo vse, kar dobimo, na dno strani za kontrolo
+                document.getElementById('surovi-izpis').innerText = "Prejeto iz ThingSpeaka: " + JSON.stringify(podatki);
+
+                // Preverimo različne oblike, ki jih ThingSpeak lahko vrne
+                let vir = null;
+                if (podatki && podatki.feeds) {
+                    vir = Array.isArray(podatki.feeds) ? podatki.feeds[0] : podatki.feeds;
+                }
+
+                if (vir) {
+                    const temp = parseFloat(vir.field1).toFixed(1);
+                    const hum = parseFloat(vir.field2).toFixed(1);
                     
-                    const temp = parseFloat(zadnjiVpis.field1).toFixed(1);
-                    const hum = parseFloat(zadnjiVpis.field2).toFixed(1);
-                    
-                    const čas = new Date(zadnjiVpis.created_at).toLocaleTimeString('sl-SI', {
+                    const čas = vir.created_at ? new Date(vir.created_at).toLocaleTimeString('sl-SI', {
                         hour: '2-digit',
                         minute: '2-digit'
-                    });
+                    }) : '--:--';
 
                     document.getElementById('temp-value').innerText = temp !== "NaN" ? `${temp} °C` : "-- °C";
                     document.getElementById('temp-time').innerText = `Posodobljeno ob ${čas}`;
                     
                     document.getElementById('hum-value').innerText = hum !== "NaN" ? `${hum} %` : "-- %";
                     document.getElementById('hum-time').innerText = `Posodobljeno ob ${čas}`;
+                } else {
+                    document.getElementById('temp-time').innerText = "Struktura podatkov ni prava.";
+                    document.getElementById('hum-time').innerText = "Struktura podatkov ni prava.";
                 }
             } catch (error) {
-                console.error(error);
+                document.getElementById('temp-time').innerText = "Napaka v kodi.";
+                document.getElementById('surovi-izpis').innerText = "Napaka: " + error.message;
             }
         }
 
@@ -94,15 +118,14 @@
 
             const s = document.createElement('script');
             s.id = 'ts-skripta';
-            // TUKAJ JE ZDAJ TVOJ PRAVI READ API KLJUČ!
+            // Uporabimo pravilen Read API ključ in kanal
             s.src = "https://thingspeak.com" + new Date().getTime();
             document.body.appendChild(s);
         }
 
         naložiVreme();
-        setInterval(naložiVreme, 30000); // Osvežuje na 30 sekund
+        setInterval(naložiVreme, 30000);
     </script>
 
 </body>
 </html>
-
