@@ -31,7 +31,6 @@
             font-size: 1.1rem;
         }
 
-        /* Zabojnik za izpis podatkov */
         .dashboard {
             display: flex;
             flex-wrap: wrap;
@@ -41,7 +40,6 @@
             width: 100%;
         }
 
-        /* Lepše kartice z velikimi številkami */
         .card {
             background: white;
             border-radius: 16px;
@@ -113,54 +111,64 @@
     </footer>
 
     <script>
-        // Tvoji podatki za povezavo
         const channelID = "3468145";
         const readKey = "7GYV1F84N3AJHMRJ";
         
-        // Povezava do ThingSpeak JSON podatkov
-        const url = `https://thingspeak.com{channelID}/feeds.json?api_key=${readKey}&results=1`;
+        // Popravljena uradna ThingSpeak povezava za zadnji vpis
+        const url = `https://thingspeak.com{channelID}/feeds/last.json?api_key=${readKey}`;
 
         async function posodobiPodatke() {
             try {
                 const response = await fetch(url);
-                const data = await response.json();
                 
-                // Pridobimo zadnji vpis (last feed)
-                const zadnjiVpis = data.feeds[0];
+                if (!response.ok) {
+                    throw new Error("Težava s strežnikom");
+                }
+                
+                const zadnjiVpis = await response.json();
                 
                 if (zadnjiVpis) {
-                    // Preberemo vrednosti (field1 in field2)
-                    // .toFixed(1) poskrbi, da se izpiše le ena decimalna številka (npr. 23.5)
-                    const temp = parseFloat(zadnjiVpis.field1).toFixed(1);
-                    const hum = parseFloat(zadnjiVpis.field2).toFixed(1);
+                    // Preberemo vrednosti
+                    const tempRaw = zadnjiVpis.field1;
+                    const humRaw = zadnjiVpis.field2;
                     
-                    // Pretvorba časa v lepšo obliko
+                    // Spremenimo čas v naš format
                     const čas = new Date(zadnjiVpis.created_at).toLocaleTimeString('sl-SI', {
                         hour: '2-digit',
                         minute: '2-digit'
                     });
 
-                    // Izpis na spletno stran
-                    if(zadnjiVpis.field1) {
+                    // Izpis temperature
+                    if (tempRaw !== null && tempRaw !== undefined) {
+                        const temp = parseFloat(tempRaw).toFixed(1);
                         document.getElementById('temp-value').innerText = `${temp} °C`;
                         document.getElementById('temp-time').innerText = `Zadnja posodobitev ob ${čas}`;
+                    } else {
+                        document.getElementById('temp-value').innerText = `-- °C`;
+                        document.getElementById('temp-time').innerText = `Ni podatka`;
                     }
-                    if(zadnjiVpis.field2) {
+
+                    // Izpis vlage
+                    if (humRaw !== null && humRaw !== undefined) {
+                        const hum = parseFloat(humRaw).toFixed(1);
                         document.getElementById('hum-value').innerText = `${hum} %`;
                         document.getElementById('hum-time').innerText = `Zadnja posodobitev ob ${čas}`;
+                    } else {
+                        document.getElementById('hum-value').innerText = `-- %`;
+                        document.getElementById('hum-time').innerText = `Ni podatka`;
                     }
                 }
             } catch (error) {
-                console.error("Napaka pri branju podatkov:", error);
-                document.getElementById('temp-time').innerText = "Napaka pri povezavi.";
-                document.getElementById('hum-time').innerText = "Napaka pri povezavi.";
+                console.error("Napaka:", error);
+                document.getElementById('temp-time').innerText = "Napaka pri branju.";
+                document.getElementById('hum-time').innerText = "Napaka pri branju.";
             }
         }
 
-        // Zaženemo branje takoj ko se stran naloži
+        // Zaženemo takoj
         posodobiPodatke();
 
-        // Samodejno osveži podatke vsakih 30 sekund (da ne rabiš klikati F5)
+        // Osvežujemo vsakih 30 sekund
         setInterval(posodobiPodatke, 30000);
     </script>
 
