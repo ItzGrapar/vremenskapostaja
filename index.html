@@ -4,116 +4,122 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Moja Vremenska Postaja</title>
-    <!-- Knjižnica za čudovite grafe -->
-    <script src="https://jsdelivr.net"></script>
     <style>
-        * { box-sizing: border-box; margin: 0; padding: 0; }
-        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: #eef2f7; color: #333; padding: 20px; display: flex; flex-direction: column; align-items: center; min-height: 100vh; }
-        h1 { font-size: 26px; margin: 20px 0; color: #2c3e50; text-align: center; }
-        .kontejner { width: 100%; max-width: 600px; }
-        .kartice-row { display: flex; gap: 15px; margin-bottom: 20px; }
-        .kartica { background: white; border-radius: 18px; padding: 20px; flex: 1; box-shadow: 0 8px 16px rgba(0,0,0,0.04); text-align: center; }
-        h2 { font-size: 13px; text-transform: uppercase; letter-spacing: 0.5px; color: #7f8c8d; margin-bottom: 8px; }
-        .vrednost { font-size: 36px; font-weight: bold; }
-        .temp { color: #ff4757; }
-        .vlaga { color: #2ed573; }
-        .graf-kartica { background: white; border-radius: 18px; padding: 20px; box-shadow: 0 8px 16px rgba(0,0,0,0.04); width: 100%; margin-bottom: 20px; }
-        .status { font-size: 12px; color: #bdc3c7; text-align: center; }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #f0f4f8;
+            color: #333;
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+
+        h1 {
+            color: #0056b3;
+            margin-bottom: 5px;
+        }
+
+        p.subtitle {
+            color: #666;
+            font-size: 1.1rem;
+        }
+
+        /* Glavni zabojnik za kartice */
+        .dashboard {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 20px;
+            max-width: 1000px;
+            width: 100%;
+        }
+
+        .card {
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+            padding: 15px;
+            text-align: center;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .card h2 {
+            font-size: 1.2rem;
+            color: #444;
+            margin-top: 0;
+            margin-bottom: 15px;
+        }
+
+        iframe {
+            border: none;
+            border-radius: 8px;
+            width: 100%;
+        }
+
+        /* Višina za grafe */
+        .iframe-chart {
+            height: 260px;
+        }
+
+        /* Višina za ThingSpeak številčnice (Gauge) */
+        .iframe-gauge {
+            height: 220px;
+        }
+
+        footer {
+            margin-top: 50px;
+            font-size: 0.9rem;
+            color: #888;
+        }
     </style>
 </head>
 <body>
 
-    <h1>☀️ Vremenska Postaja ESP32 🌧️</h1>
-    
-    <div class="kontejner">
-        <!-- Trenutne vrednosti na vrhu -->
-        <div class="kartice-row">
-            <div class="kartica">
-                <h2>Temperatura</h2>
-                <div id="temperatura" class="vrednost temp">-- °C</div>
-            </div>
-            <div class="kartica">
-                <h2>Vlaga v zraku</h2>
-                <div id="vlaga" class="vrednost vlaga">-- %</div>
-            </div>
+    <header>
+        <h1>🌤️ Moja ESP32 Vremenska Postaja</h1>
+        <p class="subtitle">Podatki iz senzorjev v živo</p>
+    </header>
+
+    <div class="dashboard">
+
+        <!-- 1. TRENUTNA TEMPERATURA (Številčnica) -->
+        <div class="card">
+            <h2>Trenutna Temperatura</h2>
+            <iframe class="iframe-gauge" src="https://thingspeak.com"></iframe>
         </div>
 
-        <!-- Zgodovinski graf pod karticami -->
-        <div class="graf-kartica">
-            <canvas id="zgodovinskiGraf"></canvas>
+        <!-- 2. TRENUTNA VLAGA (Številčnica) -->
+        <div class="card">
+            <h2>Trenutna Vlažnost</h2>
+            <iframe class="iframe-gauge" src="https://thingspeak.com"></iframe>
         </div>
-        
-        <div class="status" id="osvezeno">Pridobivanje podatkov...</div>
+
+        <!-- 3. GRAF TEMPERATURE (Zgodovina) -->
+        <div class="card">
+            <h2>Zgodovina Temperature (°C)</h2>
+            <iframe class="iframe-chart" src="https://thingspeak.com"></iframe>
+        </div>
+
+        <!-- 4. GRAF VLAGE (Zgodovina) -->
+        <div class="card">
+            <h2>Zgodovina Vlažnosti (%)</h2>
+            <iframe class="iframe-chart" src="https://thingspeak.com"></iframe>
+        </div>
+
     </div>
 
-    <script>
-        // --- TUKAJ IN SPODAJ VPISITE SVOJO ŠTEVILKO KANALA ---
-        const CHANNEL_ID = "3468145"; 
-        const STEVILO_ZAPISOV = 100; // Prikaže zadnjih 100 meritev (približno pol ure zgodovine)
+    <footer>
+        <p>Poganja ESP32, ThingSpeak in GitHub Pages</p>
+    </footer>
 
-        // Priprava grafa z dvema premicama
-        const ctx = document.getElementById('zgodovinskiGraf').getContext('2d');
-        const mojGraf = new Chart(ctx, {
-            type: 'line',
-            data: {
-                labels: [], 
-                datasets: [
-                    { label: 'Temperatura (°C)', borderColor: '#ff4757', backgroundColor: 'rgba(255, 71, 87, 0.05)', data: [], yAxisID: 'yTemp', tension: 0.3, pointRadius: 1 },
-                    { label: 'Vlaga (%)', borderColor: '#2ed573', backgroundColor: 'rgba(46, 213, 115, 0.05)', data: [], yAxisID: 'yVlaga', tension: 0.3, pointRadius: 1 }
-                ]
-            },
-            options: {
-                responsive: true,
-                scales: {
-                    yTemp: { type: 'linear', position: 'left', title: { display: true, text: 'Temperatura °C' } },
-                    yVlaga: { type: 'linear', position: 'right', min: 0, max: 100, title: { display: true, text: 'Vlaga %' }, grid: { drawOnChartArea: false } }
-                }
-            }
-        });
-
-        async function naloziZgodovino() {
-            try {
-                // Pokličemo brezplačni javni ThingSpeak API za prenos zgodovine
-                const url = `https://thingspeak.com{CHANNEL_ID}/feeds.json?results=${STEVILO_ZAPISOV}`;
-                const odziv = await fetch(url);
-                const podatki = await odziv.json();
-                
-                const feeds = podatki.feeds;
-                
-                // Izpraznimo prejšnje točke iz grafa pred novim vpisom
-                mojGraf.data.labels = [];
-                mojGraf.data.datasets[0].data = [];
-                mojGraf.data.datasets[1].data = [];
-
-                // Napolnimo graf z vrsticami iz ThingSpeaka
-                feeds.forEach(zapis => {
-                    const datum = new Date(zapis.created_at);
-                    const lepiCas = datum.toLocaleTimeString('sl-SI', { hour: '2-digit', minute: '2-digit' });
-                    
-                    mojGraf.data.labels.push(lepiCas);
-                    mojGraf.data.datasets[0].data.push(parseFloat(zapis.field1));
-                    mojGraf.data.datasets[1].data.push(parseFloat(zapis.field2));
-                });
-
-                // Posodobimo veliki številki na vrhu z najnovejšim vpisom
-                const zadnjiZapis = feeds[feeds.length - 1];
-                if(zadnjiZapis) {
-                    document.getElementById('temperatura').innerText = parseFloat(zadnjiZapis.field1).toFixed(1) + " °C";
-                    document.getElementById('vlaga').innerText = parseFloat(zadnjiZapis.field2).toFixed(1) + " %";
-                }
-
-                mojGraf.update();
-                document.getElementById('osvezeno').innerText = "Zadnjič osveženo ob: " + new Date().toLocaleTimeString('sl-SI');
-
-            } catch (napaka) {
-                document.getElementById('osvezeno').innerText = "Napaka pri prenosu podatkov!";
-                console.error(napaka);
-            }
-        }
-
-        // Osvežimo stran takoj ob zagonu, nato pa jo posodobimo vsakih 30 sekund
-        naloziZgodovino();
-        setInterval(naloziZgodovino, 30000);
-    </script>
 </body>
 </html>
