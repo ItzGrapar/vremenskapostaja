@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Moja Vremenska Postaja</title>
+    <title>Vremenska Postaja v3</title>
     <style>
         body {
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
@@ -15,76 +15,106 @@
             flex-direction: column;
             align-items: center;
         }
-
-        header {
-            text-align: center;
-            margin-bottom: 30px;
-        }
-
-        h1 {
-            color: #0056b3;
-            margin-bottom: 5px;
-        }
-
+        header { text-align: center; margin-bottom: 30px; }
+        h1 { color: #0056b3; margin-bottom: 5px; }
         .dashboard {
             display: flex;
             flex-wrap: wrap;
             gap: 20px;
             justify-content: center;
-            max-width: 900px;
+            max-width: 800px;
             width: 100%;
         }
-
         .card {
             background: white;
             border-radius: 16px;
             box-shadow: 0 4px 20px rgba(0,0,0,0.08);
-            padding: 15px;
+            padding: 25px;
             text-align: center;
             flex: 1;
-            min-width: 280px;
-            max-width: 400px;
+            min-width: 250px;
+            border-top: 5px solid #ff4757;
         }
-
-        /* Iframe okna, prilagojena, da se zlijejo s kartico */
-        iframe {
-            border: none;
-            width: 100%;
-            height: 250px;
-            border-radius: 12px;
-        }
-
-        footer {
-            margin-top: 50px;
-            font-size: 0.9rem;
-            color: #888;
-        }
+        .card.hum { border-top-color: #2ed573; }
+        .value { font-size: 3.5rem; font-weight: bold; color: #2f3542; margin: 10px 0; }
+        .status { font-size: 0.85rem; color: #a4b0be; }
     </style>
 </head>
 <body>
 
     <header>
-        <h1>🌤️ Moja ESP32 Vremenska Postaja</h1>
-        <p>Trenutni podatki brez varnostnih blokad brskalnika</p>
+        <h1>Moja Vremenska Postaja</h1>
+        <p>Podatki iz ESP32 v živo</p>
     </header>
 
     <div class="dashboard">
-
-        <!-- KARTICA ZA TEMPERATURO -->
+        <!-- Temperatura -->
         <div class="card">
-            <iframe src="https://indigextra.com°C&min=0&max=50&color=red"></iframe>
+            <h2>Temperatura</h2>
+            <div class="value" id="temp-value">-- °C</div>
+            <div class="status" id="temp-time">Nalaganje...</div>
         </div>
 
-        <!-- KARTICA ZA VLAGO -->
-        <div class="card">
-            <iframe src="https://indigextra.com"></iframe>
+        <!-- Vlaga -->
+        <div class="card hum">
+            <h2>Vlažnost Zraka</h2>
+            <div class="value" id="hum-value">-- %</div>
+            <div class="status" id="hum-time">Nalaganje...</div>
         </div>
-
     </div>
 
-    <footer>
-        <p>Poganja ESP32 & GitHub Pages</p>
-    </footer>
+    <script>
+        // Ta funkcija sprejme podatke neposredno iz ThingSpeaka
+        function obdelajPodatke(podatki) {
+            try {
+                // Preverimo, če podatki sploh obstajajo
+                if (podatki && podatki.feeds && podatki.feeds.length > 0) {
+                    const zadnjiVpis = podatki.feeds[0];
+                    
+                    const temp = parseFloat(zadnjiVpis.field1).toFixed(1);
+                    const hum = parseFloat(zadnjiVpis.field2).toFixed(1);
+                    
+                    // Spremenimo čas v lepši format
+                    const čas = new Date(zadnjiVpis.created_at).toLocaleTimeString('sl-SI', {
+                        hour: '2-digit',
+                        minute: '2-digit'
+                    });
+
+                    // Izpišemo vrednosti v kvadratke
+                    document.getElementById('temp-value').innerText = `${temp} °C`;
+                    document.getElementById('temp-time').innerText = `Posodobljeno ob ${čas}`;
+                    
+                    document.getElementById('hum-value').innerText = `${hum} %`;
+                    document.getElementById('hum-time').innerText = `Posodobljeno ob ${čas}`;
+                } else {
+                    document.getElementById('temp-time').innerText = "Ni podatkov na kanalu.";
+                    document.getElementById('hum-time').innerText = "Ni podatkov na kanalu.";
+                }
+            } catch (error) {
+                console.error("Napaka:", error);
+                document.getElementById('temp-time').innerText = "Napaka pri obdelavi.";
+                document.getElementById('hum-time').innerText = "Napaka pri obdelavi.";
+            }
+        }
+
+        // Ta del ustvari klic, ki ga brskalnik NE blokira
+        function naložiVreme() {
+            const staro = document.getElementById('ts-skripta');
+            if (staro) staro.remove();
+
+            const s = document.createElement('script');
+            s.id = 'ts-skripta';
+            // TO JE PRAVILEN NASLOV: uporablja feeds.json in na koncu določi callback funkcijo
+            s.src = "https://thingspeak.com" + new Date().getTime();
+            document.body.appendChild(s);
+        }
+
+        // Zaženemo branje takoj ob odpiranju
+        naložiVreme();
+
+        // Avtomatsko osveževanje vsakih 30 sekund
+        setInterval(naložiVreme, 30000);
+    </script>
 
 </body>
 </html>
