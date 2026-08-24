@@ -31,48 +31,49 @@
             font-size: 1.1rem;
         }
 
-        /* Glavni zabojnik za kartice */
+        /* Zabojnik za izpis podatkov */
         .dashboard {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            display: flex;
+            flex-wrap: wrap;
             gap: 20px;
-            max-width: 1000px;
+            justify-content: center;
+            max-width: 800px;
             width: 100%;
         }
 
+        /* Lepše kartice z velikimi številkami */
         .card {
             background: white;
-            border-radius: 12px;
-            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
-            padding: 15px;
+            border-radius: 16px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.08);
+            padding: 25px;
             text-align: center;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
+            flex: 1;
+            min-width: 250px;
+            border-top: 5px solid #0056b3;
         }
+
+        .card.temp { border-top-color: #ff4757; }
+        .card.hum { border-top-color: #2ed573; }
 
         .card h2 {
             font-size: 1.2rem;
-            color: #444;
-            margin-top: 0;
-            margin-bottom: 15px;
+            color: #777;
+            margin: 0 0 10px 0;
+            text-transform: uppercase;
+            letter-spacing: 1px;
         }
 
-        iframe {
-            border: none;
-            border-radius: 8px;
-            width: 100%;
+        .value {
+            font-size: 3.5rem;
+            font-weight: bold;
+            color: #2f3542;
+            margin: 10px 0;
         }
 
-        /* Višina za grafe */
-        .iframe-chart {
-            height: 260px;
-        }
-
-        /* Višina za ThingSpeak številčnice (Gauge) */
-        .iframe-gauge {
-            height: 220px;
+        .status {
+            font-size: 0.85rem;
+            color: #a4b0be;
         }
 
         footer {
@@ -86,40 +87,82 @@
 
     <header>
         <h1>🌤️ Moja ESP32 Vremenska Postaja</h1>
-        <p class="subtitle">Podatki iz senzorjev v živo</p>
+        <p class="subtitle">Podatki iz senzorjev osveženi v živo</p>
     </header>
 
     <div class="dashboard">
 
-        <!-- 1. TRENUTNA TEMPERATURA (Številčnica) -->
-        <div class="card">
-            <h2>Trenutna Temperatura</h2>
-            <iframe class="iframe-gauge" src="https://thingspeak.com"></iframe>
+        <!-- KARTICA ZA TEMPERATURO -->
+        <div class="card temp">
+            <h2>Temperatura</h2>
+            <div class="value" id="temp-value">-- °C</div>
+            <div class="status" id="temp-time">Nalaganje...</div>
         </div>
 
-        <!-- 2. TRENUTNA VLAGA (Številčnica) -->
-        <div class="card">
-            <h2>Trenutna Vlažnost</h2>
-            <iframe class="iframe-gauge" src="https://thingspeak.com"></iframe>
-        </div>
-
-        <!-- 3. GRAF TEMPERATURE (Zgodovina) -->
-        <div class="card">
-            <h2>Zgodovina Temperature (°C)</h2>
-            <iframe class="iframe-chart" src="https://thingspeak.com"></iframe>
-        </div>
-
-        <!-- 4. GRAF VLAGE (Zgodovina) -->
-        <div class="card">
-            <h2>Zgodovina Vlažnosti (%)</h2>
-            <iframe class="iframe-chart" src="https://thingspeak.com"></iframe>
+        <!-- KARTICA ZA VLAGO -->
+        <div class="card hum">
+            <h2>Vlažnost Zraka</h2>
+            <div class="value" id="hum-value">-- %</div>
+            <div class="status" id="hum-time">Nalaganje...</div>
         </div>
 
     </div>
 
     <footer>
-        <p>Poganja ESP32, ThingSpeak in GitHub Pages</p>
+        <p>Čisto branje podatkov preko ThingSpeak API-ja</p>
     </footer>
+
+    <script>
+        // Tvoji podatki za povezavo
+        const channelID = "3468145";
+        const readKey = "7GYV1F84N3AJHMRJ";
+        
+        // Povezava do ThingSpeak JSON podatkov
+        const url = `https://thingspeak.com{channelID}/feeds.json?api_key=${readKey}&results=1`;
+
+        async function posodobiPodatke() {
+            try {
+                const response = await fetch(url);
+                const data = await response.json();
+                
+                // Pridobimo zadnji vpis (last feed)
+                const zadnjiVpis = data.feeds[0];
+                
+                if (zadnjiVpis) {
+                    // Preberemo vrednosti (field1 in field2)
+                    // .toFixed(1) poskrbi, da se izpiše le ena decimalna številka (npr. 23.5)
+                    const temp = parseFloat(zadnjiVpis.field1).toFixed(1);
+                    const hum = parseFloat(zadnjiVpis.field2).toFixed(1);
+                    
+                    // Pretvorba časa v lepšo obliko
+                    const čas = new Date(zadnjiVpis.created_at).toLocaleTimeString('sl-SI', {
+                        hour: '2-digit',
+                        minute: '2-digit'
+                    });
+
+                    // Izpis na spletno stran
+                    if(zadnjiVpis.field1) {
+                        document.getElementById('temp-value').innerText = `${temp} °C`;
+                        document.getElementById('temp-time').innerText = `Zadnja posodobitev ob ${čas}`;
+                    }
+                    if(zadnjiVpis.field2) {
+                        document.getElementById('hum-value').innerText = `${hum} %`;
+                        document.getElementById('hum-time').innerText = `Zadnja posodobitev ob ${čas}`;
+                    }
+                }
+            } catch (error) {
+                console.error("Napaka pri branju podatkov:", error);
+                document.getElementById('temp-time').innerText = "Napaka pri povezavi.";
+                document.getElementById('hum-time').innerText = "Napaka pri povezavi.";
+            }
+        }
+
+        // Zaženemo branje takoj ko se stran naloži
+        posodobiPodatke();
+
+        // Samodejno osveži podatke vsakih 30 sekund (da ne rabiš klikati F5)
+        setInterval(posodobiPodatke, 30000);
+    </script>
 
 </body>
 </html>
